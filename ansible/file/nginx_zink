@@ -1,0 +1,15 @@
+/home/work/nginx/logs/zink.log
+/home/work/nginx/logs/error.log
+{
+    su work work
+    daily
+    rotate 10
+    size 100M
+    missingok
+    notifempty
+    sharedscripts
+    dateext
+    postrotate
+        [ ! -f /home/work/nginx/logs/nginx.pid ] || kill -USR1 `cat /home/work/nginx/logs/nginx.pid`
+    endscript
+}

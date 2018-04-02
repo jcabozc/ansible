@@ -1,0 +1,13 @@
+/home/work/nginx/logs/fileserver.log
+{
+    su work work
+    daily
+    rotate 10
+    missingok
+    notifempty
+    sharedscripts
+    dateext
+    postrotate
+        [ ! -f /home/work/nginx/logs/nginx.pid ] || kill -USR1 `cat /home/work/nginx/logs/nginx.pid`
+    endscript
+}

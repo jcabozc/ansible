@@ -1,0 +1,9 @@
+PidFile=/usr/local/zabbix/logs/zabbix_agentd.pid
+LogFile=/usr/local/zabbix/logs/zabbix_agentd.log
+EnableRemoteCommands=1
+Server={{ zabbix_server_ip }}
+ServerActive={{ zabbix_server_ip }}
+Hostname={{ ansible_ssh_host }}
+Timeout=15
+Include=/usr/local/zabbix/etc/zabbix_agentd.conf.d/
+UnsafeUserParameters=1

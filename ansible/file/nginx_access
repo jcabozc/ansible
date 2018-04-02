@@ -1,0 +1,14 @@
+/home/work/nginx/logs/access.log
+{
+    su work work
+    daily
+    size 100M
+    rotate 10
+    missingok
+    notifempty
+    sharedscripts
+    dateext
+    postrotate
+        [ ! -f /home/work/nginx/logs/nginx.pid ] || kill -USR1 `cat /home/work/nginx/logs/nginx.pid`
+    endscript
+}

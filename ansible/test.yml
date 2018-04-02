@@ -1,0 +1,11 @@
+
+---
+- hosts: new
+  gather_facts: no
+  vars:
+    zabbix_server_ip: '10.80.6.12'
+
+  remote_user:
+  tasks:
+    - name: test
+      shell: echo {{ ansible_ssh_host }}

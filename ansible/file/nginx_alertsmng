@@ -1,0 +1,14 @@
+/home/work/nginx/logs/alarm.log
+{
+    su work work
+    daily
+    create 640 work work
+    rotate 30
+    missingok
+    notifempty
+    sharedscripts
+    dateext
+    postrotate
+        [ ! -f /home/work/nginx/logs/nginx.pid ] || kill -USR1 `cat /home/work/nginx/logs/nginx.pid`
+    endscript
+}

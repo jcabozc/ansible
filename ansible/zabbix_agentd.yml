@@ -1,0 +1,119 @@
+---
+- hosts: new
+  gather_facts: no
+  vars:
+    zabbix_server_ip: '10.80.6.12'
+
+  remote_user:
+  tasks:
+    - name: add zabbix user
+      user: name='zabbix' shell='/sbin/nologin' state=present
+
+    - name: install basic pkg
+      yum: name={{ item }} state=latest
+      with_items:
+        - 'epel-release'
+        - 'ntpdate'
+        - 'util-linux'
+        - 'vim'
+        - 'rsync'
+        - 'wget'
+        - 'gcc'
+        - 'chrony'
+        - 'sysstat'
+        - 'net-tools'
+        - 'libselinux-python'
+
+#    - name: add crond local time sync
+#      cron:
+#        name: "time sync"
+#        special_time: hourly
+#        job: "/usr/sbin/ntpdate us.pool.ntp.org &> /dev/null; /usr/sbin/clock -w"
+#        backup: yes
+    
+    - name: get zabbix pkg
+      get_url:
+        url: "http://nchc.dl.sourceforge.net/project/zabbix/ZABBIX%20Latest%20Stable/3.0.10/zabbix-3.0.10.tar.gz"
+        dest: /tmp
+      tags:
+        - get_zabbix_pkg
+
+    - name: unarchive and install zabbix
+      shell: "tar xf zabbix-3.0.10.tar.gz && cd zabbix-3.0.10 && ./configure --prefix=/usr/local/zabbix --enable-agent && make -j4 && make install"
+      args:
+        chdir: /tmp
+      tags:
+        - za_mk_in
+
+    - name: create_dir
+      file: path={{ item }} owner=zabbix group=zabbix state=directory
+      with_items:
+        # - { '/usr/local/zabbix/script' }
+        - '/usr/local/zabbix/script'
+        - '/usr/local/zabbix/logs'
+        - '/usr/local/zabbix/etc/zabbix_agentd.conf.d'
+
+
+    - name: copy zabbix scripts
+      copy: src={{ item.src }} dest={{ item.dest }} owner=zabbix group=zabbix mode={{ item.mode }} 
+      with_items:
+        - { src: '/opt/ansible/file/zabbix_agentd', dest: '/etc/init.d/zabbix_agentd', mode: '0755' }
+        - { src: '/opt/ansible/file/userparameter_base.conf', dest: '/usr/local/zabbix/etc/zabbix_agentd.conf.d/userparameter_base.conf', mode: '0750' }
+        - { src: '/opt/ansible/file/disk_discovery.py', dest: '/usr/local/zabbix/script/disk_discovery.py', mode: '0755' }
+        - { src: '/opt/ansible/file/disk_status.sh', dest: '/usr/local/zabbix/script/disk_status.sh', mode: '0755' }
+        - { src: '/opt/ansible/file/nic_link_discovery.py', dest: '/usr/local/zabbix/script/nic_link_discovery.py', mode: '0755' }
+        - { src: '/opt/ansible/file/nic_speed_status.sh', dest: '/usr/local/zabbix/script/nic_speed_status.sh', mode: '0755' }
+        - { src: '/opt/ansible/file/eth_check.sh', dest: '/usr/local/zabbix/script/eth_check.sh', mode: '0755' }
+        - { src: '/opt/ansible/file/userparameter_softraid.conf', dest: '/usr/local/zabbix/etc/zabbix_agentd.conf.d/userparameter_softraid.conf', mode: '0755' }
+
+        ## web server 
+        - { src: '/opt/ansible/file/userparameter_nginx.conf', dest: '/usr/local/zabbix/etc/zabbix_agentd.conf.d/userparameter_nginx.conf', mode: '0750' }
+        - { src: '/opt/ansible/file/nginx_status.sh', dest: '/usr/local/zabbix/script/nginx_status.sh', mode: '0755' }
+
+        ## db server
+        - { src: '/opt/ansible/file/userparameter_custom_mongodb.conf', dest: '/usr/local/zabbix/etc/zabbix_agentd.conf.d/userparameter_custom_mongodb.conf', mode: '0750' }
+
+
+    - name: echo ansible_ssh_host
+      shell: echo -e "dest host ip is \n {{ ansible_ssh_host }}  "     
+
+    - name: configure zabbix_agentd
+      template: 
+        src: /opt/ansible/file/zabbix_agentd.conf.j2
+        dest: /usr/local/zabbix/etc/zabbix_agentd.conf 
+        owner: zabbix  
+        group: zabbix
+        backup: yes
+      notify:
+      - name: restart zabbix_agentd 
+      tags:
+        - config_zabbix
+
+
+    - name: add on boot
+      shell: chkconfig zabbix_agentd on 
+
+    - name: add zabbix sudo
+      lineinfile:
+        path: /etc/sudoers
+        line: 'zabbix ALL=(root) NOPASSWD: ALL,/usr/sbin/visudo,!/bin/su,!/usr/bin/passwd,!/usr/bin/chattr -* /etc/sudoers,!/bin/rm,!/bin/chown'
+
+    - name: add zabbix sudo2
+      lineinfile:
+        path: /etc/sudoers
+        line: 'Defaults:zabbix !requiretty'
+    
+    - name: start zabbix and chronyd service 
+      command: echo "this task will restart the zabbix services"
+      notify: "restart basic services"
+
+
+  handlers:
+    - name: restart chronyd
+      service: name=chronyd state=restarted
+      listen: "restart basic services"
+    - name: restart zabbix_agentd
+      service:
+        name: zabbix_agentd
+        state: restarted
+      listen: "restart basic services"
