@@ -1,3 +1,0 @@
-* * * * * bash /home/work/ops/shell/check_daemon.sh >> /home/work/ops/logs/check_daemon.log 2>&1
-
-@daily find /data/log/sms -type f -mtime +3 -name "sms*.log.*"  -exec rm {} \;
